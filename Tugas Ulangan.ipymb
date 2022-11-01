@@ -1,0 +1,179 @@
+df = df.drop(['Sentimen'], axis=1)
+df.head()
+df.info()
+from ekphrasis.classes.preprocessor import TextPreProcessor
+from ekphrasis.classes.tokenizer import SocialTokenizer
+from ekphrasis.dicts.emoticons import emoticons
+
+text_processor = TextPreProcessor(
+    # terms that will be normalized
+    normalize=['email', 'percent', 'money', 'phone', 'user',
+        'time', 'date', 'number'],
+    # terms that will be annotated
+    #annotate={"hashtag", "allcaps", "elongated", "repeated",'emphasis', 'censored'},
+    annotate={"hashtag"},
+    fix_html=True,  # fix HTML tokens
+    
+    # corpus from which the word statistics are going to be used 
+    # for word segmentation 
+    segmenter="twitter", 
+    
+    # corpus from which the word statistics are going to be used 
+    # for spell correction
+    corrector="twitter", 
+    
+    unpack_hashtags=True,  # perform word segmentation on hashtags
+    unpack_contractions=True,  # Unpack contractions (can't -> can not)
+    spell_correct_elong=False,  # spell correction for elongated words
+    
+    # select a tokenizer. You can use SocialTokenizer, or pass your own
+    # the tokenizer, should take as input a string and return a list of tokens
+    tokenizer=SocialTokenizer(lowercase=True).tokenize,
+    
+    # list of dictionaries, for replacing tokens extracted from the text,
+    # with other expressions. You can pass more than one dictionaries.
+    dicts=[emoticons]
+)
+def bersih_data(text):
+    return " ".join(text_processor.pre_process_doc(text))
+
+def non_ascii(text):
+    return text.encode('ascii', 'replace').decode('ascii')
+    i = 0
+final_string = []
+s = ""
+for text in df['Tweet'].values:
+    filteredSentence = []
+    EachReviewText = ""
+    proc = bersih_data(proc)
+    #     dst
+    #     dst
+    #     dst
+    EachReviewText = proc
+    final_string.append(EachReviewText)
+df["step01"] = final_string
+### Tampilkan posisi data terakhir (10 Teratas)
+df.head(10)
+df_hapus = df[~df['step01'].str.contains(" ")]
+df_hapus.info()
+df_hapus.head(10)
+df_new = df[~df.isin(df_hapus)].dropna()
+df_new.info()
+df_new
+## Bisa menggunakan nltk 
+import nltk
+from nltk.tokenize import word_tokenize 
+ 
+df_new['tokens'] = df['step01'].apply(word_tokenize_wrapper)
+df_new.head(10)
+normalized_word = pd.read_csv('kamus_clean.csv', sep=",")
+### dst
+df_new['final_tokens'] = df_new['tokens'].apply(normalized_term)
+i=0
+final_string_tokens = []
+for text in df_new['final_tokens'].values:
+    EachReviewText = ""
+    EachReviewText = ' '.join(text)
+    final_string_tokens.append(EachReviewText)
+df_new["step02"] = final_string_tokens
+df_new.head(10)
+df_new.to_csv('clean_dataset_uts_part01.csv',sep=";")
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+ 
+factory = StopWordRemoverFactory()
+
+more_stopword = ['sih', 'nya','rt','loh','lah', 'dd', 'mah', 'nye', 'eh', 'ehh', 'ah', 'yang']
+ 
+# Tambahkan Stopword Baru
+### Tuliskan perintahnya disini ???
+
+stopwords_sastrawi = factory.create_stop_word_remover()
+df_new['step02'] = df_new['step02'].apply(str)
+df_new.head()
+i=0
+final_string = []
+s = ""
+for sentence in df_new["step02"].values:
+    filteredSentence = []
+    EachReviewText = ""
+    st = stopwords_sastrawi.remove(sentence)
+    s = (stemmer.stem(st))
+    filteredSentence.append(s)
+    
+    EachReviewText = ' '.join(filteredSentence)
+    final_string.append(EachReviewText)
+df_new.loc[:, ('ProcessedText')] = final_string
+df_new.head()
+df_new.to_csv('clean_dataset_uts_part02.csv',sep=";")
+dataset_feature = df_new['ProcessedText']
+dataset_label = df_new['Emosi']
+dataset_label.value_counts()
+dataset_label.value_counts(normalize=True).mul(100).round(1).astype(str) + '%'
+# Visualizing the target variable
+plt.figure(figsize=(12,8))
+sns.displot(dataset_label, label=f'target, skew: {dataset_label.skew():.2f}')
+plt.legend(loc='best')
+plt.show()
+from sklearn.feature_extraction.text import TfidfVectorizer
+vectorizer = TfidfVectorizer()
+positive_low_reviews = df_new[(df_new["Emosi"] == 1)]
+negative_low_reviews = df_new[(df_new["Emosi"] == -1)]
+positive_high_reviews = df_new[(df_new["Emosi"] == 2)]
+negative_high_reviews = df_new[(df_new["Emosi"] == -2)]
+positive_low_reviews.head()
+Positive_1_tf_idf_vect = TfidfVectorizer(ngram_range=(1,2))
+Positive_1_tf_idf = Positive_1_tf_idf_vect.fit_transform(positive_low_reviews["ProcessedText"].values)
+Positive_1_tf_idf.shape
+features = Positive_1_tf_idf_vect.get_feature_names()
+
+idfValues = Positive_1_tf_idf_vect.idf_
+
+d = dict(zip(features, 9 - idfValues))
+
+sortedDict = sorted(d.items(), key = lambda d: d[1], reverse = True)
+
+for i in range(200):
+    print(sortedDict[i])
+from wordcloud import WordCloud
+import matplotlib.pyplot as plot
+def PlotWordCloud(frequency):
+    worcloudPlot = WordCloud(background_color="white", width=1500, height=1000)
+    worcloudPlot.generate_from_frequencies(frequencies=frequency)
+    plot.figure(figsize=(15,10))
+    plot.imshow(worcloudPlot, interpolation="bilinear")
+    plot.axis("off")
+    plot.show()
+PlotWordCloud(d)
+models = [
+          ('Naive Bayes Multinomial', accuracy_nb_train, accuracy_nb_test),                    
+         ]
+predict = pd.DataFrame(data = models, columns=['Model', 'Training Accuracy', 'Test Accuracy'])
+predict
+models_comparison = [
+                        ('Naive Bayes Multinomial', accuracy_nb_test, recall_nb_test, precision_nb_test),                          
+                    ]
+comparison = pd.DataFrame(data = models_comparison, columns=['Model', 'Accuracy', 'Recall', 'Precision'])
+comparison
+import numpy as np
+
+f, axes = plt.subplots(2,1, figsize=(14,10))
+
+predict.sort_values(by=['Training Accuracy'], ascending=False, inplace=True)
+
+sns.barplot(x='Training Accuracy', y='Model', data = predict, palette='Blues_d', ax = axes[0])
+#axes[0].set(xlabel='Region', ylabel='Charges')
+axes[0].set_xlabel('Training Accuracy', size=16)
+axes[0].set_ylabel('Model')
+axes[0].set_xlim(0,1.0)
+axes[0].set_xticks(np.arange(0, 1.1, 0.1))
+
+predict.sort_values(by=['Test Accuracy'], ascending=False, inplace=True)
+
+sns.barplot(x='Test Accuracy', y='Model', data = predict, palette='Greens_d', ax = axes[1])
+#axes[0].set(xlabel='Region', ylabel='Charges')
+axes[1].set_xlabel('Test Accuracy', size=16)
+axes[1].set_ylabel('Model')
+axes[1].set_xlim(0,1.0)
+axes[1].set_xticks(np.arange(0, 1.1, 0.1))
+
+plt.show()
